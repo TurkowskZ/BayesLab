@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Frequentist Trap & Bayes Playground</title>
+<style>
+  :root {
+    --bg: #090d16;
+    --surface: #131b2e;
+    --surface-bright: #1c2742;
+    --border: #2d3b5f;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.35);
+    --tp: #22c55e;
+    --fp: #f43f5e;
+    --fn: #fbbf24;
+    --tn: #60a5fa;
+    --text: #f1f5f9;
+    --text-dim: #94a3b8;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 32px 16px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .lab-wrapper {
+    max-width: 960px;
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    margin: 0 0 8px 0;
+    background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .tagline {
+    font-size: 1.1rem;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+  }
+
+  .confrontation-box {
+    background: linear-gradient(180deg, rgba(244, 63, 94, 0.1) 0%, rgba(19, 27, 46, 0.6) 100%);
+    border: 1px solid rgba(244, 63, 94, 0.4);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 32px;
+  }
+
+  .confrontation-box strong {
+    color: #fda4af;
+    font-size: 1.05rem;
+  }
+
+  .interactive-deck {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 780px) {
+    .interactive-deck {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .panel {
+    background: var(--surface-bright);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .preset-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .chip-btn {
+    background: #1e293b;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .chip-btn:hover {
+    background: var(--accent);
+    color: #090d16;
+    border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .slider-row {
+    margin-bottom: 18px;
+  }
+
+  .slider-row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text-dim);
+  }
+
+  .slider-row span.badge {
+    color: var(--accent);
+    font-family: monospace;
+    font-size: 0.95rem;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .meter-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    height: 100%;
+    gap: 16px;
+  }
+
+  .meter-card {
+    background: #0d1322;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .meter-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+  }
+
+  .meter-card.ppv::before { background: var(--tp); }
+  .meter-card.fdr::before { background: var(--fp); }
+
+  .meter-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .meter-val {
+    font-size: 2.6rem;
+    font-weight: 900;
+    font-family: monospace;
+    margin: 4px 0;
+  }
+
+  .canvas-panel {
+    background: #0d1322;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 32px;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+
+  .canvas-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 0.82rem;
+  }
+
+  .legend-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-pill {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  .quest-zone {
+    border-top: 1px solid var(--border);
+    padding-top: 32px;
+  }
+
+  .quest-card {
+    background: var(--surface-bright);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .quest-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .quest-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #e2e8f0;
+  }
+
+  .step-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin: 18px 0;
+  }
+
+  .step-inputs div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .step-inputs label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .step-inputs input {
+    background: #090d16;
+    border: 1px solid var(--border);
+    color: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.95rem;
+  }
+
+  .step-inputs input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .check-trigger {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+    transition: transform 0.1s ease;
+  }
+
+  .check-trigger:active {
+    transform: scale(0.98);
+  }
+
+  .status-box {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    display: none;
+  }
+
+  .status-box.win {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid var(--tp);
+    color: #86efac;
+  }
+
+  .status-box.fail {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid var(--fp);
+    color: #fca5a5;
+  }
+</style>
+</head>
+<body>
+
+<div class="lab-wrapper">
+  <h1>The Frequentist Trap & Bayes Playground</h1>
+  <div class="tagline">Why achieving p &lt; .05 often means your result is total garbage</div>
+
+  <div class="confrontation-box">
+    <strong>The Transposition Delusion</strong>
+    <p style="margin: 6px 0 0 0; color: #cbd5e1; font-size: 0.92rem;">
+      Your p value only tells you: <em>"If literally nothing was happening, would these numbers be bizarre?"</em><br>
+      It does <strong>not</strong> tell you: <em>"Did I actually discover something real?"</em><br>
+      To flip that question around, you need priors. If your theory was wacky to begin with, a significant p value just means you likely struck an expensive false alarm.
+    </p>
+  </div>
+
+  <div class="preset-row">
+    <button class="chip-btn" onclick="fireScenario(0.0001, 1.00, 0.01)">Swine Flu Clinic (1 in 10k)</button>
+    <button class="chip-btn" onclick="fireScenario(0.01, 0.90, 0.05)">Schizophrenia Screening (1% Base)</button>
+    <button class="chip-btn" onclick="fireScenario(0.10, 0.50, 0.05)">Underpowered Wild Claim</button>
+    <button class="chip-btn" onclick="fireScenario(0.50, 0.80, 0.05)">Grounded Theory (50/50 Coin Flip)</button>
+  </div>
+
+  <div class="interactive-deck">
+    <div class="panel">
+      <div class="slider-row">
+        <label>Base Plausibility: P(H1 is True) <span class="badge" id="lblPrior">10.0%</span></label>
+        <input type="range" id="rngPrior" min="0.0001" max="0.99" step="0.0005" value="0.10">
+      </div>
+
+      <div class="slider-row">
+        <label>Statistical Power: 1 - &beta; <span class="badge" id="lblPower">80.0%</span></label>
+        <input type="range" id="rngPower" min="0.05" max="1.0" step="0.01" value="0.80">
+      </div>
+
+      <div class="slider-row">
+        <label>Alpha Threshold: &alpha; (Type I Error) <span class="badge" id="lblAlpha">5.0%</span></label>
+        <input type="range" id="rngAlpha" min="0.001" max="0.20" step="0.001" value="0.05">
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="meter-container">
+        <div class="meter-card ppv">
+          <div class="meter-label">True Discovery Rate: P(H1 | Significant Test)</div>
+          <div class="meter-val" id="valPPV" style="color: var(--tp);">64.0%</div>
+          <div style="font-size: 0.75rem; color: var(--text-dim);">Significant findings that are authentic</div>
+        </div>
+        <div class="meter-card fdr">
+          <div class="meter-label">False Discovery Rate: P(H0 | Significant Test)</div>
+          <div class="meter-val" id="valFDR" style="color: var(--fp);">36.0%</div>
+          <div style="font-size: 0.75rem; color: var(--text-dim);">Significant findings that are complete flukes</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-panel">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+      <strong style="font-size: 0.95rem;">Simulation: 1,000 Hypotheses in the Field</strong>
+      <span id="txtSummary" style="font-family: monospace; font-size: 0.85rem; color: var(--accent);"></span>
+    </div>
+    <canvas id="matrixView" width="900" height="180"></canvas>
+    
+    <div class="canvas-legend">
+      <div class="legend-tag"><div class="legend-pill" style="background: var(--tp);"></div> Real Effect Detected (<span id="lblTP">80</span>)</div>
+      <div class="legend-tag"><div class="legend-pill" style="background: var(--fp);"></div> False Alarm Publish (<span id="lblFP">45</span>)</div>
+      <div class="legend-tag"><div class="legend-pill" style="background: var(--fn);"></div> Missed Real Effect (<span id="lblFN">20</span>)</div>
+      <div class="legend-tag"><div class="legend-pill" style="background: var(--tn);"></div> Correctly Ignored (<span id="lblTN">855</span>)</div>
+    </div>
+  </div>
+
+  <div class="quest-zone">
+    <h2>Lab Checkpoint Quests</h2>
+    <p style="color: var(--text-dim); margin-top: -8px;">Plug in the formulas directly. The page validates your working steps instantly.</p>
+
+    <!-- Problem 1 -->
+    <div class="quest-card">
+      <div class="quest-header">
+        <span class="quest-title">Problem 1: The Swine Flu Panic</span>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-dim); margin: 0;">
+        Base incidence is 1 in 10,000 (0.0001). The test has zero false negatives (sensitivity = 1.0) and a 1% false positive rate (0.01). If you test positive, what are the odds you actually have it?
+      </p>
+      <div class="step-inputs">
+        <div>
+          <label>Step 1: P(True Pos & Disease)</label>
+          <input type="number" step="0.0001" id="q1_a" placeholder="1.0 * 0.0001">
+        </div>
+        <div>
+          <label>Step 2: Total Positive Test Probability</label>
+          <input type="number" step="0.0001" id="q1_b" placeholder="P(True+) + P(False+)">
+        </div>
+        <div>
+          <label>Step 3: Posterior P(Flu | Positive)</label>
+          <input type="number" step="0.0001" id="q1_c" placeholder="Result (0 to 1)">
+        </div>
+      </div>
+      <button class="check-trigger" onclick="evalProblem1()">Submit Check</button>
+      <div class="status-box" id="statQ1"></div>
+    </div>
+
+    <!-- Problem 2 -->
+    <div class="quest-card">
+      <div class="quest-header">
+        <span class="quest-title">Problem 2: Schizophrenia Screening</span>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-dim); margin: 0;">
+        Base rate is 1% (0.01). The test has 90% sensitivity (0.90) and 95% specificity (5% false alarm rate = 0.05). If someone tests positive, what is the probability they have schizophrenia?
+      </p>
+      <div class="step-inputs">
+        <div>
+          <label>Step 1: P(Pos & Schizophrenia)</label>
+          <input type="number" step="0.0001" id="q2_a" placeholder="0.90 * 0.01">
+        </div>
+        <div>
+          <label>Step 2: Total Positive Pool</label>
+          <input type="number" step="0.0001" id="q2_b" placeholder="0.009 + (0.05 * 0.99)">
+        </div>
+        <div>
+          <label>Step 3: Posterior Probability</label>
+          <input type="number" step="0.0001" id="q2_c" placeholder="Result (0 to 1)">
+        </div>
+      </div>
+      <button class="check-trigger" onclick="evalProblem2()">Submit Check</button>
+      <div class="status-box" id="statQ2"></div>
+    </div>
+
+    <!-- Problem 3 -->
+    <div class="quest-card">
+      <div class="quest-header">
+        <span class="quest-title">Problem 3: Liver Disease & Alcoholism</span>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-dim); margin: 0;">
+        P(Liver Disease) = 0.10. P(Alcoholic) = 0.05. Among patients with liver disease, 7% are alcoholics: P(Alcoholic | Disease) = 0.07. If a patient is an alcoholic, what is the probability they have liver disease?
+      </p>
+      <div class="step-inputs">
+        <div>
+          <label>Step 1: Numerator P(Alc | Disease) * P(Disease)</label>
+          <input type="number" step="0.0001" id="q3_a" placeholder="0.07 * 0.10">
+        </div>
+        <div>
+          <label>Step 2: Denominator P(Alcoholic)</label>
+          <input type="number" step="0.0001" id="q3_b" placeholder="0.05">
+        </div>
+        <div>
+          <label>Step 3: Posterior P(Disease | Alcoholic)</label>
+          <input type="number" step="0.0001" id="q3_c" placeholder="Result (0 to 1)">
+        </div>
+      </div>
+      <button class="check-trigger" onclick="evalProblem3()">Submit Check</button>
+      <div class="status-box" id="statQ3"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const rngPrior = document.getElementById('rngPrior');
+  const rngPower = document.getElementById('rngPower');
+  const rngAlpha = document.getElementById('rngAlpha');
+
+  const lblPrior = document.getElementById('lblPrior');
+  const lblPower = document.getElementById('lblPower');
+  const lblAlpha = document.getElementById('lblAlpha');
+
+  const valPPV = document.getElementById('valPPV');
+  const valFDR = document.getElementById('valFDR');
+
+  const lblTP = document.getElementById('lblTP');
+  const lblFP = document.getElementById('lblFP');
+  const lblFN = document.getElementById('lblFN');
+  const lblTN = document.getElementById('lblTN');
+  const txtSummary = document.getElementById('txtSummary');
+
+  const canvas = document.getElementById('matrixView');
+  const ctx = canvas.getContext('2d');
+
+  function update() {
+    const prior = parseFloat(rngPrior.value);
+    const power = parseFloat(rngPower.value);
+    const alpha = parseFloat(rngAlpha.value);
+
+    lblPrior.textContent = (prior * 100).toFixed(prior < 0.01 ? 2 : 1) + '%';
+    lblPower.textContent = (power * 100).toFixed(1) + '%';
+    lblAlpha.textContent = (alpha * 100).toFixed(1) + '%';
+
+    const n = 1000;
+    const realH1 = n * prior;
+    const realH0 = n * (1 - prior);
+
+    const tp = realH1 * power;
+    const fn = realH1 * (1 - power);
+    const fp = realH0 * alpha;
+    const tn = realH0 * (1 - alpha);
+
+    const sigs = tp + fp;
+    const ppv = sigs > 0 ? (tp / sigs) : 0;
+    const fdr = sigs > 0 ? (fp / sigs) : 0;
+
+    valPPV.textContent = (ppv * 100).toFixed(1) + '%';
+    valFDR.textContent = (fdr * 100).toFixed(1) + '%';
+
+    lblTP.textContent = tp.toFixed(1);
+    lblFP.textContent = fp.toFixed(1);
+    lblFN.textContent = fn.toFixed(1);
+    lblTN.textContent = tn.toFixed(1);
+
+    txtSummary.textContent = `${sigs.toFixed(0)} Significant Claims (${tp.toFixed(0)} Real, ${fp.toFixed(0)} Fake)`;
+
+    drawGrid(tp, fp, fn, tn);
+  }
+
+  function drawGrid(tp, fp, fn, tn) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const total = tp + fp + fn + tn;
+    const cols = 50;
+    const rows = 20;
+    const px = 14;
+    const py = 12;
+    const dx = (canvas.width - px * 2) / (cols - 1);
+    const dy = (canvas.height - py * 2) / (rows - 1);
+
+    const countTP = Math.round((tp / total) * 1000);
+    const countFP = Math.round((fp / total) * 1000);
+    const countFN = Math.round((fn / total) * 1000);
+
+    for (let i = 0; i < 1000; i++) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      const x = px + c * dx;
+      const y = py + r * dy;
+
+      let fill = '#60a5fa'; // TN
+      let glow = false;
+
+      if (i < countTP) {
+        fill = '#22c55e'; // TP
+        glow = true;
+      } else if (i < countTP + countFP) {
+        fill = '#f43f5e'; // FP
+        glow = true;
+      } else if (i < countTP + countFP + countFN) {
+        fill = '#fbbf24'; // FN
+      }
+
+      ctx.beginPath();
+      ctx.arc(x, y, glow ? 3.5 : 2.5, 0, 2 * Math.PI);
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+  }
+
+  function fireScenario(prior, power, alpha) {
+    rngPrior.value = prior;
+    rngPower.value = power;
+    rngAlpha.value = alpha;
+    update();
+  }
+
+  rngPrior.addEventListener('input', update);
+  rngPower.addEventListener('input', update);
+  rngAlpha.addEventListener('input', update);
+
+  function checkDelta(val, target, tol = 0.005) {
+    return Math.abs(val - target) <= tol;
+  }
+
+  function replyBox(elem, ok, msg) {
+    elem.style.display = 'block';
+    elem.className = 'status-box ' + (ok ? 'win' : 'fail');
+    elem.innerHTML = msg;
+  }
+
+  function evalProblem1() {
+    const a = parseFloat(document.getElementById('q1_a').value);
+    const b = parseFloat(document.getElementById('q1_b').value);
+    const c = parseFloat(document.getElementById('q1_c').value);
+    const box = document.getElementById('statQ1');
+
+    const okA = checkDelta(a, 0.0001, 0.00005);
+    const okB = checkDelta(b, 0.010099, 0.0005);
+    const okC = checkDelta(c, 0.0099, 0.005);
+
+    if (okA && okB && okC) {
+      replyBox(box, true, 'Spot on. Despite a test with 99% accuracy and zero false negatives, a positive test only translates to a ~0.99% probability of having swine flu. The rare base rate dominates.');
+    } else {
+      replyBox(box, false, 'Recalibrate: Step 1 = 1.0 * 0.0001 = 0.0001. Step 2 = 0.0001 + (0.01 * 0.9999) = 0.010099. Step 3 = 0.0001 / 0.010099 ≈ 0.0099.');
+    }
+  }
+
+  function evalProblem2() {
+    const a = parseFloat(document.getElementById('q2_a').value);
+    const b = parseFloat(document.getElementById('q2_b').value);
+    const c = parseFloat(document.getElementById('q2_c').value);
+    const box = document.getElementById('statQ2');
+
+    const okA = checkDelta(a, 0.0090, 0.0005);
+    const okB = checkDelta(b, 0.0585, 0.002);
+    const okC = checkDelta(c, 0.1538, 0.01);
+
+    if (okA && okB && okC) {
+      replyBox(box, true, 'Calculations confirmed. Sensitivity hits 0.0090, denominator equals 0.0585, producing a final probability of 15.4%. A positive test increases risk 15x, but the majority of positive results remain false alarms.');
+    } else {
+      replyBox(box, false, 'Recalibrate: Step 1 = 0.90 * 0.01 = 0.009. Step 2 = 0.009 + (0.05 * 0.99) = 0.0585. Step 3 = 0.009 / 0.0585 ≈ 0.1538.');
+    }
+  }
+
+  function evalProblem3() {
+    const a = parseFloat(document.getElementById('q3_a').value);
+    const b = parseFloat(document.getElementById('q3_b').value);
+    const c = parseFloat(document.getElementById('q3_c').value);
+    const box = document.getElementById('statQ3');
+
+    const okA = checkDelta(a, 0.007, 0.001);
+    const okB = checkDelta(b, 0.05, 0.001);
+    const okC = checkDelta(c, 0.14, 0.01);
+
+    if (okA && okB && okC) {
+      replyBox(box, true, 'Verified. Numerator is 0.007, denominator is 0.05, yielding 0.14 (14%). Being an alcoholic increases liver disease likelihood from 10% to 14%.');
+    } else {
+      replyBox(box, false, 'Recalibrate: Step 1 = 0.07 * 0.10 = 0.007. Step 2 = 0.05. Step 3 = 0.007 / 0.05 = 0.14.');
+    }
+  }
+
+  update();
+</script>
+
+</body>
+</html>
